@@ -18,10 +18,10 @@ create table if not exists messages (
   content text
 );
 
-INSERT INTO messages (channel_id, user, content) VALUES (1, "yash", "hey whats up woofus this is chat 1");
-INSERT INTO messages (channel_id, user, content) VALUES (1, "rufus", " bark bark bark bark");
-INSERT INTO messages (channel_id, user, content) VALUES (2, "yash", "hi nala this is chat 2");
-INSERT INTO messages (channel_id, user, content) VALUES (2, "nala", "soft bark bark bark bark");
+INSERT INTO messages (channel_id, user, content) VALUES (0, "yash", "hey whats up woofus this is chat 1");
+INSERT INTO messages (channel_id, user, content) VALUES (0, "rufus", " bark bark bark bark");
+INSERT INTO messages (channel_id, user, content) VALUES (1, "yash", "hi nala this is chat 2");
+INSERT INTO messages (channel_id, user, content) VALUES (1, "nala", "soft bark bark bark bark");
 
 drop table if exists auth;
 create table if not exists auth (
@@ -30,5 +30,7 @@ create table if not exists auth (
   PRIMARY KEY (authkey, channel_id)
 );
 
+INSERT INTO auth (authkey, channel_id) VALUES ('testauthkey', 0);
 INSERT INTO auth (authkey, channel_id) VALUES ('testauthkey', 1);
+
 

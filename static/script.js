@@ -11,10 +11,19 @@ class SendMessage extends React.Component {
 }
 
 class Messages extends React.Component {
+    constructor(props){
+        super(props);
+        this.props.fetchMessages();
+        this.state = {
+            currChannel: this.props.currChannel
+        }
+    }
+    
 
     render() {
+        const currChannel = this.props.currChannel;
         const messages = this.props.messages.map((message, idx) => 
-            <div key ={idx}>
+            <div key ={idx} smething={currChannel}>
                 <p className = "author" > <b>{message[0]}</b> </p>
                 <p className = "message" > {message[1]} </p>
             </div>
@@ -27,6 +36,7 @@ class Messages extends React.Component {
         );
 
     }
+    
 }
 
 class Chat extends React.Component{
@@ -34,7 +44,11 @@ class Chat extends React.Component{
     render(){
         return(
             <div className = "chat border">
-                <Messages messages={this.props.messages}/>
+                <Messages 
+                    messages={this.props.messages}
+                    fetchMessages={this.props.fetchMessages}
+                    currentChannel={this.props.currentChannel}
+                />
                 <SendMessage/>
             </div>
         )
@@ -45,10 +59,23 @@ class Chat extends React.Component{
 class Channels extends React.Component{
 
     render(){
-        const chats = this.props.channelNames.map((e,idx) =>
-            <div className="chatName" key = {idx} >
-            <p> {e}</p>
-            </div>
+        const chats = this.props.channelNames.map((e,idx) => 
+            {
+                if (idx == this.props.currentChannel)
+                    return (
+                        <div className="chatName" key = {idx} >
+                                <p> <b>{e}</b></p>
+                        </div>
+                    ) 
+                else return (
+                    <div className="chatName" key = {idx} >
+                        <button onClick={() => this.props.switchChannel(idx)}>
+                            <p> {e}</p>
+                        </button>
+                    </div>
+                )          
+            }
+ 
         );
 
         return(
@@ -56,7 +83,6 @@ class Channels extends React.Component{
                 {chats}
             </div>
         )
-
     }
 }
 
@@ -64,15 +90,17 @@ class Belay extends React.Component{
     constructor(props) {
         super(props);
         this.fetchChannels = this.fetchChannels.bind(this);
+        this.switchChannel = this.switchChannel.bind(this);
+        this.fetchMessages = this.fetchMessages.bind(this);
         this.state = {
             channelNames: [],
             channelIds: [],
-            currentChat: 1,
+            currentChannel: 0,
             messages: [] //messages to be displayed on a certain page
         }
 
         this.fetchChannels();
-        this.fetchMessages();
+        // this.fetchMessages();
     }
 
 
@@ -100,6 +128,7 @@ class Belay extends React.Component{
     }
 
     async fetchMessages(){
+        console.log('fetching messages')
         const response = await fetch("http://127.0.0.1:5002/api/messages",
             {
                 method: 'GET',
@@ -107,12 +136,21 @@ class Belay extends React.Component{
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'Authorization': 'testauthkey',
-                    'Channel': 1
+                    'Channel': this.state.currentChannel
                 }
             }
         );
         const data = await response.json();
         this.setState({ messages: data });
+    }
+
+    switchChannel(channel){
+
+        this.setState({currentChannel: channel}, 
+            () => {this.fetchMessages();} //because setting state is async
+        )
+        
+        
     }
 
 
@@ -123,8 +161,18 @@ class Belay extends React.Component{
     render(){
         return(
             <div className = "outerContainer">
-                <Channels channelNames={this.state.channelNames} channelIds = {this.state.channelIds} fetchChannels={this.fetchChannels}/>
-                <Chat messages={this.state.messages}/>
+                <Channels 
+                    channelNames={this.state.channelNames} 
+                    channelIds = {this.state.channelIds} 
+                    fetchChannels={this.fetchChannels}
+                    currentChannel={this.state.currentChannel}
+                    switchChannel={this.switchChannel}
+                />
+                <Chat 
+                    messages={this.state.messages}
+                    fetchMessages={this.fetchMessages}
+                    currentChannel={this.state.currentChannel}
+                />
             </div>
         )
     }

@@ -38,11 +38,10 @@ def messages():
         "SELECT channel_id from auth where authkey = ? AND channel_id = ?", (authkey, channel)).fetchall()
 
     if len(permission) == 0:
-        return {}, 403
+        return jsonify([]), 403
 
     msg = cursor.execute(
         "select * from messages where channel_id = ? ORDER BY rowid ASC", (channel)).fetchall()
-    print(msg)
 
     messages = []
     for m in msg:
