@@ -1,0 +1,32 @@
+.outerContainer {
+  display: flex; /* outermost container is a flexbox */
+  min-height: 100vh; /* makes it span entire heigh of page */
+  align-items: stretch;
+}
+
+.outerContainer .border {
+  border: 1px rgb(168, 165, 165) solid;
+}
+
+.chatList {
+  flex: 1;
+
+  display: grid; /*also a flex box containing each chat name */
+  grid-template-rows: 70px;
+  grid-auto-rows: 70px; /* for any new rows created*/
+}
+
+.chat {
+  flex: 3; /* relative width relative to chatList inside outerContainer*/
+
+  display: flex; /* chat bar is also a flex box */
+  flex-direction: column;
+}
+
+.messages {
+  flex: 4; /* inside .chat flexbox */
+}
+
+.sendMessage {
+  flex: 1; /* inside .chat flexbox */
+}
