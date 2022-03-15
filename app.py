@@ -50,4 +50,22 @@ def messages():
     return jsonify(messages), 200
 
 
+@app.route('/api/postMessage', methods=['POST'])
+def postMessage():
+    body = request.json
+    channel = int(body['channel'])
+    authkey = body['authkey']
+    content = body['content']
+
+    connection = sqlite3.connect("db/belay.db")
+    cursor = connection.cursor()
+    user = cursor.execute(
+        "select username from users where authkey = ?", (authkey,)).fetchall()[0][0]
+    cursor.execute(
+        "INSERT INTO messages (channel_id, user, content) VALUES (?,?,?)", (channel, user, content,))
+    connection.commit()
+
+    return "", 204
+
+
 app.run(debug=True, port=5002)

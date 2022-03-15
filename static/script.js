@@ -3,7 +3,11 @@ class SendMessage extends React.Component {
     render() {
         return(
             <div className="sendMessage border">
-                <p> Some stuff here3 </p>
+                <form>
+                <label >What do you have to say?</label>
+                <textarea name="comment"></textarea>
+                <button onClick={this.props.postMessage} type="button" value="Post">Post</button>
+                </form>
             </div>
         );
 
@@ -11,19 +15,11 @@ class SendMessage extends React.Component {
 }
 
 class Messages extends React.Component {
-    constructor(props){
-        super(props);
-        this.props.fetchMessages();
-        this.state = {
-            currChannel: this.props.currChannel
-        }
-    }
-    
+
 
     render() {
-        const currChannel = this.props.currChannel;
         const messages = this.props.messages.map((message, idx) => 
-            <div key ={idx} smething={currChannel}>
+            <div key ={idx} >
                 <p className = "author" > <b>{message[0]}</b> </p>
                 <p className = "message" > {message[1]} </p>
             </div>
@@ -49,7 +45,7 @@ class Chat extends React.Component{
                     fetchMessages={this.props.fetchMessages}
                     currentChannel={this.props.currentChannel}
                 />
-                <SendMessage/>
+                <SendMessage postMessage={this.props.postMessage}/>
             </div>
         )
 
@@ -92,15 +88,18 @@ class Belay extends React.Component{
         this.fetchChannels = this.fetchChannels.bind(this);
         this.switchChannel = this.switchChannel.bind(this);
         this.fetchMessages = this.fetchMessages.bind(this);
+        this.postMessage = this.postMessage.bind(this);
+
         this.state = {
             channelNames: [],
             channelIds: [],
             currentChannel: 0,
             messages: [] //messages to be displayed on a certain page
-        }
+        };
 
         this.fetchChannels();
-        // this.fetchMessages();
+        this.fetchMessages();
+
     }
 
 
@@ -126,10 +125,11 @@ class Belay extends React.Component{
         this.setState({ channelIds: channelIds });
         
     }
+    
 
-    async fetchMessages(){
+    fetchMessages(){
         console.log('fetching messages')
-        const response = await fetch("http://127.0.0.1:5002/api/messages",
+        fetch("http://127.0.0.1:5002/api/messages",
             {
                 method: 'GET',
                 headers: {
@@ -139,18 +139,34 @@ class Belay extends React.Component{
                     'Channel': this.state.currentChannel
                 }
             }
-        );
-        const data = await response.json();
-        this.setState({ messages: data });
+        ).then(response => response.json())
+        .then(data => this.setState({messages: data}))
+        .then(setTimeout(() => {this.fetchMessages()}, 1000))
     }
+    
 
     switchChannel(channel){
-
         this.setState({currentChannel: channel}, 
             () => {this.fetchMessages();} //because setting state is async
         )
-        
-        
+    }
+
+    postMessage(){
+        fetch("http://127.0.0.1:5002/api/postMessage",
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    'channel': this.state.currentChannel,
+                    'authkey': 'testauthkey',
+                    'content': document.querySelector("textarea").value
+                })
+            }
+        );
+        document.querySelector("textarea").value = ''
     }
 
 
@@ -172,6 +188,7 @@ class Belay extends React.Component{
                     messages={this.state.messages}
                     fetchMessages={this.fetchMessages}
                     currentChannel={this.state.currentChannel}
+                    postMessage = {this.postMessage}
                 />
             </div>
         )
