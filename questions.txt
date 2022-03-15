@@ -1,0 +1,2 @@
+1. how to switch between two and three column layout
+2. what is a join table? how does that work
