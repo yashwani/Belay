@@ -4,8 +4,8 @@ class SendReply extends React.Component {
         return(
             <div className="sendMessage border">
                 <form>
-                <label >What do you have to say?</label>
-                <textarea name="comment"></textarea>
+                <label >Send a reply:</label>
+                <textarea id='reply' name="comment"></textarea>
                 <button onClick={this.props.postReply} type="button" value="Post">Post</button>
                 </form>
             </div>
@@ -21,7 +21,7 @@ class SendMessage extends React.Component {
                 <form>
                 <label >What do you have to say?</label>
                 <textarea name="comment"></textarea>
-                <button onClick={this.props.postMessage} type="button" value="Post">Post</button>
+                <button onClick={this.props.postMessage} type="button" value="Post">Reply</button>
                 </form>
             </div>
         );
@@ -84,6 +84,7 @@ class Messages extends React.Component {
                     <div key ={idx} >
                         <p className = "author" > <b>{message[0]}</b> </p>
                         <p className = "message" > {message[1]} </p>
+                        <button value={idx} onClick={e => this.props.setMessageThread(e.target.value)}> Reply </button>
                     </div>
                 )
             } else{
@@ -115,7 +116,7 @@ class Chat extends React.Component{
                         currentMessageReplies = {this.props.currentMessageReplies}
                         messages = {this.props.messages}
                     />
-                    <SendMessage postMessage={this.props.postMessage}/>
+                    <SendReply postReply={this.props.postReply}/>
                 </div>
             )
         } else
@@ -218,6 +219,7 @@ class Belay extends React.Component{
         this.createAccount = this.createAccount.bind(this);
         this.fetchReplies = this.fetchReplies.bind(this);
         this.setMessageThread = this.setMessageThread.bind(this);
+        this.postReply = this.postReply.bind(this);
 
         this.state = {
             channelNames: [],
@@ -226,11 +228,11 @@ class Belay extends React.Component{
             messages: [], //messages to be displayed on a certain page
             replies: [],
 
-            isLoggedOut: false,
+            isLoggedOut: true,
             isInvalidCredential: false,
 
             replyMode: false,
-            currentMessage: 0,
+            messageThread: 0,
             currentMessageReplies: []
 
         };
@@ -341,6 +343,32 @@ class Belay extends React.Component{
         document.querySelector("textarea").value = ''
     }
 
+    postReply(){
+        console.log(this.state.messageThread)
+        console.log(this.state.currentChannel)
+        console.log(window.localStorage.yashwani_auth_key)
+        console.log(document.querySelector("#reply").value)
+
+
+        fetch("http://127.0.0.1:5002/api/postReply",
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Authorization': window.localStorage.yashwani_auth_key
+                },
+                body: JSON.stringify({
+                    'message': this.state.messageThread,
+                    'channel': this.state.currentChannel,
+                    'content': document.querySelector("#reply").value
+                })
+            }
+        );
+        document.querySelector("#reply").value = ''
+    }
+
+
     attemptLogin(){
         const username = document.querySelector('#loginUsername').value;
         const password = document.querySelector('#loginPassword').value;
@@ -394,34 +422,11 @@ class Belay extends React.Component{
 
 
     setMessageThread(message_idx){
-        // this.setState({messageThread: parseInt(message_idx)+1})
-        // this.setState({replyMode: true})
-
         this.setState({messageThread: parseInt(message_idx)+1}, 
             () => { this.setState({replyMode: true}); } //because setting state is async
         ) 
-
-        // console.log(this.state.messages)
-        // console.log(this.state.messageThread)
     }
 
-    // logReplies(message_idx){
-    //     this.setState({replyMode: true})
-
-    //     message_idx = parseInt(message_idx)
-
-    //     const currentMessageReplies = []
-    //     this.state.replies.map((reply, idx) =>        
-    //         {
-    //             if(message_idx+1 == reply[0]){
-    //                 currentMessageReplies.push(reply)      
-    //             }      
-    //         }
-    //     )
-
-    //     console.log(replies)
-    //     this.setState({replies: replies})
-    // }
 
 
 
@@ -457,6 +462,7 @@ class Belay extends React.Component{
                         setMessageThread = {this.setMessageThread}
                         replyMode = {this.state.replyMode}
                         currentMessageReplies = {this.state.currentMessageReplies}
+                        postReply = {this.postReply}
                     />
                 </div>
             )
