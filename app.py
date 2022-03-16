@@ -88,6 +88,31 @@ def postMessage():
     return "", 204
 
 
+@app.route('/api/postReply', methods=['POST'])
+def postReply():
+    body = request.json
+    message = int(body['message'])
+    channel = int(body['channel'])
+    content = body['content']
+    authkey = request.headers.get('Authorization')
+
+    connection = sqlite3.connect("db/belay.db")
+    cursor = connection.cursor()
+    user = cursor.execute(
+        "select username from users where authkey = ?", (authkey,)).fetchall()[0][0]
+
+    print(message)
+    print(channel)
+    print(user)
+    print(content)
+    cursor.execute("INSERT INTO replies(message_id, channel_id, user, content) VALUES(?, ?, ?, ?)",
+                   (message, channel, user, content,))
+
+    connection.commit()
+
+    return "", 204
+
+
 @app.route('/api/attemptLogin', methods=['GET'])
 def attemptLogin():
     username = request.headers.get('Username')
