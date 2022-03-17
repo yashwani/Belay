@@ -59,3 +59,15 @@ create table if not exists replies(
 INSERT INTO replies(message_id, channel_id, user, content) VALUES(1, 0, 'nala', 'this is a reply to yashs first message');
 INSERT INTO replies(message_id, channel_id, user, content) VALUES(2, 0, 'nala', 'this is a reply to another message');
 INSERT INTO replies(message_id, channel_id, user, content) VALUES(1, 0, 'nala', 'this is another reply to yashs first message');
+
+
+drop table if exists last_read;
+create table if not exists last_read(
+  last_read_message_id INT NOT NULL,
+  channel_id INT NOT NULL,
+  authkey varchar(255) NOT NULL,
+  PRIMARY KEY(channel_id, authkey)
+);
+
+INSERT INTO last_read(last_read_message_id, channel_id, authkey) VALUES (4, 1, 'testauthkey');
+

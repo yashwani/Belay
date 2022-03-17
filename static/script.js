@@ -149,13 +149,23 @@ class Channels extends React.Component{
                                 <p> <b>{e}</b></p>
                         </div>
                     ) 
-                else return (
-                    <div className="chatName" key = {idx} >
-                        <button onClick={() => this.props.switchChannel(idx)}>
-                            <p> {e}</p>
-                        </button>
-                    </div>
-                )          
+                else {
+                    let num_unread = 0;
+                    for (const e of this.props.unreadChannels){
+                        if(idx == e[0]){
+                            num_unread = e[1];
+                        }
+                    }
+                
+                    return (
+                        <div className="chatName" key = {idx} >
+                            <button onClick={() => this.props.switchChannel(idx)}>
+                                <p> {e}</p>
+                                <p> {num_unread} </p>
+                            </button>
+                        </div>
+                    )   
+                }       
             }
  
         );
@@ -233,7 +243,9 @@ class Belay extends React.Component{
 
             replyMode: false,
             messageThread: 0,
-            currentMessageReplies: []
+            currentMessageReplies: [],
+
+            unreadChannels: []
 
         };
 
@@ -243,6 +255,7 @@ class Belay extends React.Component{
 
     componentDidMount(){
         this.fetchChannels();
+        this.fetchUnread();
         
 
         this.isInvalid = false
@@ -344,12 +357,6 @@ class Belay extends React.Component{
     }
 
     postReply(){
-        console.log(this.state.messageThread)
-        console.log(this.state.currentChannel)
-        console.log(window.localStorage.yashwani_auth_key)
-        console.log(document.querySelector("#reply").value)
-
-
         fetch("http://127.0.0.1:5002/api/postReply",
             {
                 method: 'POST',
@@ -427,7 +434,22 @@ class Belay extends React.Component{
         ) 
     }
 
-
+    fetchUnread(){
+        console.log('fetching unread')
+        fetch("http://127.0.0.1:5002/api/unreadMessages",
+            {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Authorization': window.localStorage.yashwani_auth_key
+                }
+            }
+        ).then(response => response.json())
+        .then(data => this.setState({unreadChannels: data}))
+        .then(() => console.log(this.state.unreadChannels))
+        .then(setTimeout(() => {this.fetchUnread()}, 5000))
+    }
 
 
 
@@ -451,6 +473,7 @@ class Belay extends React.Component{
                         fetchChannels={this.fetchChannels}
                         currentChannel={this.state.currentChannel}
                         switchChannel={this.switchChannel}
+                        unreadChannels={this.state.unreadChannels}
                     />
                     <Chat 
                         messages={this.state.messages}

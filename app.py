@@ -47,10 +47,29 @@ def messages():
     for m in msg:
         messages.append([m[2], m[3]])
 
+    # Update last_read table below ==============================
+    last_read = cursor.execute(
+        "select max(rowid) from messages where channel_id = ?", (channel,)).fetchall()[0][0]
+
+    if last_read == None:
+        last_read = 0
+
+    notseenbefore = len(cursor.execute(
+        "select * from last_Read where channel_id = ? and authkey = ?", (channel, authkey,)).fetchall()) == 0
+
+    if notseenbefore:
+        cursor.execute("insert into last_read(last_read_message_id, channel_id, authkey) VALUES (?,?,?)",
+                       (last_read, channel, authkey,))
+    else:
+        cursor.execute("update last_read set last_read_message_id = ? where channel_id = ? and authkey = ?",
+                       (last_read, channel, authkey,))
+    connection.commit()
+    # Update last_read table above ==============================
+
     return jsonify(messages), 200
 
 
-@app.route('/api/replies', methods=['GET'])
+@ app.route('/api/replies', methods=['GET'])
 def replies():
     authkey = request.headers.get('Authorization')
     channel = request.headers.get('Channel')
@@ -65,12 +84,11 @@ def replies():
         return jsonify([]), 403
 
     rpl = cursor.execute("SELECT message_id, replies.user,replies.content,messages.content from replies inner join messages on message_id = messages.rowid where replies.channel_id = ? order by message_id asc, replies.rowid asc", (channel,)).fetchall()
-    print(rpl)
 
     return jsonify(rpl), 200
 
 
-@app.route('/api/postMessage', methods=['POST'])
+@ app.route('/api/postMessage', methods=['POST'])
 def postMessage():
     body = request.json
     channel = int(body['channel'])
@@ -88,7 +106,7 @@ def postMessage():
     return "", 204
 
 
-@app.route('/api/postReply', methods=['POST'])
+@ app.route('/api/postReply', methods=['POST'])
 def postReply():
     body = request.json
     message = int(body['message'])
@@ -101,10 +119,6 @@ def postReply():
     user = cursor.execute(
         "select username from users where authkey = ?", (authkey,)).fetchall()[0][0]
 
-    print(message)
-    print(channel)
-    print(user)
-    print(content)
     cursor.execute("INSERT INTO replies(message_id, channel_id, user, content) VALUES(?, ?, ?, ?)",
                    (message, channel, user, content,))
 
@@ -113,7 +127,7 @@ def postReply():
     return "", 204
 
 
-@app.route('/api/attemptLogin', methods=['GET'])
+@ app.route('/api/attemptLogin', methods=['GET'])
 def attemptLogin():
     username = request.headers.get('Username')
     password = request.headers.get('Password')
@@ -130,7 +144,7 @@ def attemptLogin():
     return jsonify(permission[0][0]), 200
 
 
-@app.route('/api/createAccount', methods=['POST'])
+@ app.route('/api/createAccount', methods=['POST'])
 def createAccount():
     body = request.json
     username = body['username']
@@ -145,6 +159,26 @@ def createAccount():
     connection.commit()
 
     return "", 204
+
+
+@ app.route('/api/unreadMessages', methods=['GET'])
+def unreadMessages():
+    authkey = request.headers.get('Authorization')
+
+    connection = sqlite3.connect("db/belay.db")
+    cursor = connection.cursor()
+
+    permission = cursor.execute(
+        "SELECT * from users where authkey = ? ", (authkey,)).fetchall()
+
+    if len(permission) == 0:
+        return jsonify(""), 403
+
+    unreadMessages = cursor.execute("with my_last_read as (with all_channels as (select distinct rowid-1 as channel_id from channels) select all_channels.channel_id, coalesce(last_read.last_read_message_id,0) as last_read_id from all_channels left join last_read on all_channels.channel_id = last_read.channel_id and last_read.authkey = ?) select my_last_read.channel_id,count(*) from my_last_read left join messages on my_last_read.channel_id = messages.channel_id where messages.rowid > my_last_read.last_read_id group by messages.channel_id;", (authkey,)).fetchall()
+    print("PRinting unread messages")
+    print(authkey)
+    print(unreadMessages)
+    return jsonify(unreadMessages), 200
 
 
 app.run(debug=True, port=5002)
