@@ -31,34 +31,41 @@ class SendMessage extends React.Component {
 
 
 class Replies extends React.Component {
+
+    checkIfImage(content){
+        const re = /(https?:\/\/.*\.(?:png|jpg|gif|jpeg))/;
+        return re.test(content)
+    }
+
+    returnImageLink(content){
+        const re = /(https?:\/\/.*\.(?:png|jpg|gif|jpeg))/;
+        return re.exec(content)[0]
+    }
+
+
     render(){
         const replies = this.props.currentMessageReplies.map((reply, idx) => 
-            <div key ={idx} >
-                <p className = "author" > <b>{reply[1]}</b> </p>
-                <p className = "message" > {reply[2]} </p>
-            </div>
+                <div key ={idx} >
+                    <p className = "author" > <b>{reply[1]}</b> </p>
+                    <p className = "message" > {reply[2]} </p>
+                    {(this.checkIfImage(reply[2]) &&  (<img className='messageImage' src={this.returnImageLink(reply[2])}/>))}
+                </div>
+
         )
 
-        if(this.props.currentMessageReplies.length != 0){
-            const original_author = this.props.messages[this.props.currentMessageReplies[0][0]-1][0]
-            const original_message = this.props.messages[this.props.currentMessageReplies[0][0]-1][1]
-            return(
-                <div className="messages border">
-                    <p><b>{original_author}</b></p>
-                    <p>{original_message}</p>
-                    <hr/>
-                    {replies}
-                </div>
-            );
+        const original_author = this.props.messages[this.props.messageThread-1][0]
+        const original_message = this.props.messages[this.props.messageThread-1][1]
 
-        } else{
-            return (
-                <div className="messages border">
-                    {replies}
-                </div>
+        return(
+            <div className="messages border">
+                <button onClick={() => this.props.switchChannel(-1, true)}>back to channel</button>
+                <p><b>{original_author}</b></p>
+                <p>{original_message}</p>
+                <hr/>
+                {replies}
+            </div>
+        );
 
-            )
-        }
     }
 }
 
@@ -76,30 +83,31 @@ class Messages extends React.Component {
         return mr
     }
 
+    checkIfImage(content){
+        const re = /(https?:\/\/.*\.(?:png|jpg|gif|jpeg))/;
+        return re.test(content)
+    }
+
+    returnImageLink(content){
+        const re = /(https?:\/\/.*\.(?:png|jpg|gif|jpeg))/;
+        return re.exec(content)[0]
+    }
+
     render() {
         const message_replies = this.countRepliesPerMessage(this.props.replies)
         const messages = this.props.messages.map((message, idx) => 
-            {if (message_replies[idx] == null){
-                return (
+
                     <div key ={idx} >
                         <p className = "author" > <b>{message[0]}</b> </p>
                         <p className = "message" > {message[1]} </p>
-                        <button value={idx} onClick={e => this.props.setMessageThread(e.target.value)}> Reply </button>
+                        <button value={idx} onClick={e => this.props.setMessageThread(e.target.value, true)}> {(message_replies[idx] == null ? "Reply" : message_replies[idx] + " Replies")}</button>
+                        {(this.checkIfImage(message[1]) &&  (<img className='messageImage' src={this.returnImageLink(message[1])}/>))}
                     </div>
-                )
-            } else{
-                return (
-                    <div key ={idx} >
-                        <p className = "author" > <b>{message[0]}</b> </p>
-                        <p className = "message" > {message[1]} </p>
-                        <button value={idx} onClick={e => this.props.setMessageThread(e.target.value)}> {message_replies[idx] + " Replies"}</button>
-                    </div>
-                )
-            }}
         );
 
         return(
             <div className="messages border">
+                {this.props.smallScreen && (<button onClick={this.props.smallScreenBackToChannels}>back to channels</button>)}
                 {messages}
             </div>
         );
@@ -115,6 +123,8 @@ class Chat extends React.Component{
                     <Replies 
                         currentMessageReplies = {this.props.currentMessageReplies}
                         messages = {this.props.messages}
+                        messageThread = {this.props.messageThread}
+                        switchChannel={this.props.switchChannel}
                     />
                     <SendReply postReply={this.props.postReply}/>
                 </div>
@@ -129,6 +139,8 @@ class Chat extends React.Component{
                         currentChannel={this.props.currentChannel}
                         replies={this.props.replies}
                         setMessageThread = {this.props.setMessageThread}
+                        smallScreen = {this.props.smallScreen}
+                        smallScreenBackToChannels = {this.props.smallScreenBackToChannels}
                     />
                     <SendMessage postMessage={this.props.postMessage}/>
                 </div>
@@ -139,6 +151,10 @@ class Chat extends React.Component{
 }
 
 class Channels extends React.Component{
+    componentDidMount(){
+        this.props.fetchUnread();
+        this.props.fetchChannels();
+    }
 
     render(){
         const chats = this.props.channelNames.map((e,idx) => 
@@ -159,7 +175,7 @@ class Channels extends React.Component{
                 
                     return (
                         <div className="chatName" key = {idx} >
-                            <button onClick={() => this.props.switchChannel(idx)}>
+                            <button onClick={() => this.props.switchChannel(idx, true)}>
                                 <p> {e}</p>
                                 <p> {num_unread} </p>
                             </button>
@@ -230,11 +246,13 @@ class Belay extends React.Component{
         this.fetchReplies = this.fetchReplies.bind(this);
         this.setMessageThread = this.setMessageThread.bind(this);
         this.postReply = this.postReply.bind(this);
+        this.fetchUnread = this.fetchUnread.bind(this);
+        this.smallScreenBackToChannels = this.smallScreenBackToChannels.bind(this);
 
         this.state = {
             channelNames: [],
             channelIds: [],
-            currentChannel: 0,
+            currentChannel: (isNaN(window.localStorage.yashwani_channel)? 0 : window.localStorage.yashwani_channel),
             messages: [], //messages to be displayed on a certain page
             replies: [],
 
@@ -245,7 +263,12 @@ class Belay extends React.Component{
             messageThread: 0,
             currentMessageReplies: [],
 
-            unreadChannels: []
+            unreadChannels: [],
+
+            //small screen state
+            smallScreen: false,
+            showChannels: false
+
 
         };
 
@@ -254,12 +277,44 @@ class Belay extends React.Component{
     }
 
     componentDidMount(){
-        this.fetchChannels();
-        this.fetchUnread();
-        
+        this.validateAuthKey()
+
+        // this.fetchChannels();
+
+        this.checkWidth = () => {
+            const match = window.matchMedia(`(max-width: 768px)`);
+            const isSmall = match.matches;
+            if (this.state.smallScreen != isSmall){
+                this.setState({smallScreen: isSmall});
+            }
+          };
+
+        this.checkWidth();
+        window.addEventListener("resize", this.checkWidth);
 
         this.isInvalid = false
+
+        window.addEventListener("popstate", (newState) => {
+            const inChannel = window.location.pathname.length < 7;
+
+            if (inChannel){
+                this.switchChannel(parseInt(window.location.pathname.slice(5)),false)
+            } else{
+                const chatNum = parseInt(window.location.pathname.slice(5,window.location.pathname.indexOf('m')))
+                const messageNum = parseInt(window.location.pathname.slice(window.location.pathname.lastIndexOf('e')+1))
+                this.setMessageThread(messageNum-1, false, chatNum)
+            }
+            
+        })
+
+        
+        window.history.pushState({"page": "channel"},"", "/chat" +  this.state.currentChannel);
+
     }
+
+
+
+
 
 
     async fetchChannels(){
@@ -268,7 +323,8 @@ class Belay extends React.Component{
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'Authorization': window.localStorage.yashwani_auth_key,
                 }
             }
         );
@@ -287,7 +343,7 @@ class Belay extends React.Component{
     
 
     fetchMessages(){
-        console.log('fetching messages')
+        // console.log('fetching messages')
         fetch("http://127.0.0.1:5002/api/messages",
             {
                 method: 'GET',
@@ -304,7 +360,7 @@ class Belay extends React.Component{
     }
 
     fetchReplies(){
-        console.log('fetching replies')
+        // console.log('fetching replies')
         fetch("http://127.0.0.1:5002/api/replies",
             {
                 method: 'GET',
@@ -332,10 +388,24 @@ class Belay extends React.Component{
     }
 
 
-    switchChannel(channel){
+    switchChannel(channel, pushHistory){
+        if (channel == -1){
+            channel = this.state.currentChannel;
+        }
+
+        if (this.state.smallScreen){
+            this.setState({showChannels: false})
+        }
+
         this.setState({currentChannel: channel}, 
-            () => { history.pushState("","", window.location.origin + "/chat" + '/' +  this.state.currentChannel); } //because setting state is async
-        )       
+            () => { 
+                if (pushHistory){
+                    window.history.pushState({"page": "channel"},"", "/chat" +  this.state.currentChannel); 
+                }
+            } //because setting state is async
+        ) 
+        
+        this.setState({replyMode: false})      
     }
 
     postMessage(){
@@ -345,10 +415,10 @@ class Belay extends React.Component{
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
+                    'Authorization': window.localStorage.yashwani_auth_key
                 },
                 body: JSON.stringify({
                     'channel': this.state.currentChannel,
-                    'authkey': window.localStorage.yashwani_auth_key,
                     'content': document.querySelector("textarea").value
                 })
             }
@@ -400,14 +470,34 @@ class Belay extends React.Component{
                     response.json()
                     .then(data => {
                         window.localStorage.setItem('yashwani_auth_key',data);
-                        this.setState({isLoggedOut: false});
+                        
+                        
                     })
+                    .then(() => this.setState({isLoggedOut: false}))
+
+                }}
+        )
+    }
+
+    validateAuthKey(){
+        fetch("/api/validateAuthKey",
+            {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Authorization': window.localStorage.yashwani_auth_key
+                }
+            }
+        ).then(response => {
+                if (response.status == 200){
+                    this.setState({isLoggedOut: false})
                 }}
         )
     }
 
     createAccount(){
-        console.log('creating new account')
+        // console.log('creating new account')
         const username = document.querySelector('#createAccountUsername').value;
         const password = document.querySelector('#createAccountPassword').value;
 
@@ -428,14 +518,25 @@ class Belay extends React.Component{
     }
 
 
-    setMessageThread(message_idx){
+    setMessageThread(message_idx, pushHistory, chat = this.state.currentChannel){
+        this.setState({currentChannel: chat})
         this.setState({messageThread: parseInt(message_idx)+1}, 
-            () => { this.setState({replyMode: true}); } //because setting state is async
+            () => { 
+
+                if (pushHistory){
+                    window.history.pushState({"page": "messageThread"},"", "/chat" +  chat + 'message' + this.state.messageThread); 
+                }
+
+                this.setState({replyMode: true}); 
+            } //because setting state is async
         ) 
+
+        
+
     }
 
     fetchUnread(){
-        console.log('fetching unread')
+        // console.log('fetching unread')
         fetch("http://127.0.0.1:5002/api/unreadMessages",
             {
                 method: 'GET',
@@ -447,8 +548,11 @@ class Belay extends React.Component{
             }
         ).then(response => response.json())
         .then(data => this.setState({unreadChannels: data}))
-        .then(() => console.log(this.state.unreadChannels))
         .then(setTimeout(() => {this.fetchUnread()}, 5000))
+    }
+
+    smallScreenBackToChannels(){
+        this.setState({showChannels: true})
     }
 
 
@@ -456,6 +560,7 @@ class Belay extends React.Component{
     render(){
 
         if (this.state.isLoggedOut){
+            window.history.pushState("","", "/login"); 
             return (
                 <LoginPage 
                     attemptLogin={this.attemptLogin}
@@ -464,29 +569,36 @@ class Belay extends React.Component{
                 />
             )
         } else{
-            history.pushState("","", window.location.origin + "/chat" + '/' +  this.state.currentChannel); 
             return(
                 <div className = "outerContainer">
-                    <Channels 
+                    {(!this.state.smallScreen || this.state.showChannels) && 
+                    (<Channels 
                         channelNames={this.state.channelNames} 
                         channelIds = {this.state.channelIds} 
                         fetchChannels={this.fetchChannels}
                         currentChannel={this.state.currentChannel}
                         switchChannel={this.switchChannel}
                         unreadChannels={this.state.unreadChannels}
-                    />
-                    <Chat 
+                        fetchUnread = {this.fetchUnread}
+                        
+                    />)}
+                    {(!this.state.smallScreen || !this.state.showChannels) && 
+                    (<Chat 
                         messages={this.state.messages}
                         fetchMessages={this.fetchMessages}
                         replies={this.state.replies}
                         fetchReplies={this.fetchReplies}
                         currentChannel={this.state.currentChannel}
+                        switchChannel={this.switchChannel}
                         postMessage = {this.postMessage}
                         setMessageThread = {this.setMessageThread}
+                        messageThread = {this.state.messageThread}
                         replyMode = {this.state.replyMode}
                         currentMessageReplies = {this.state.currentMessageReplies}
                         postReply = {this.postReply}
-                    />
+                        smallScreen = {this.state.smallScreen}
+                        smallScreenBackToChannels = {this.smallScreenBackToChannels}
+                    />)}
                 </div>
             )
         }
