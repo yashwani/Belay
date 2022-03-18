@@ -1,9 +1,0 @@
-1. how to switch between two and three column layout
-2. what is a join table? how does that work
-3. how should we think about replies
-4. user's last message?
-    - needs to be continuously polling
-    - when you look at chat, update user chat with number of messages  
-    - subtract from total number of messages
-5. how does it work hiding a div, like replies
-6. how can you call a function in react whenever a component loads

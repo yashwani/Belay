@@ -30,3 +30,17 @@
 .sendMessage {
   flex: 1; /* inside .chat flexbox */
 }
+
+.messageImage {
+  height: 200px;
+  width: 300px;
+}
+
+@media screen and (max-width: 800px) {
+  .outerContainer {
+    display: flex; /* outermost container is a flexbox */
+    min-height: 100vh; /* makes it span entire heigh of page */
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

@@ -6,6 +6,7 @@ from flask import Flask, render_template, request, jsonify
 from functools import wraps
 import uuid
 import sqlite3
+import bcrypt
 
 import json
 
@@ -13,12 +14,30 @@ app = Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 
+@app.route('/')
+@app.route('/chat<int:chat_id>')
+@app.route('/login')
+def index(chat_id=None):
+    return app.send_static_file('index.html')
+
+
 @app.route('/api/chats', methods=['GET'])
 def channels():
     connection = sqlite3.connect("db/belay.db")
     cursor = connection.cursor()
-    rows = cursor.execute("SELECT rowid, channelname FROM channels").fetchall()
 
+    authkey = request.headers.get('Authorization')
+    print(authkey)
+    permission = cursor.execute(
+        "SELECT * from users where authkey = ? ", (authkey,)).fetchall()
+
+    print('printing permission')
+    print(permission)
+    if len(permission) == 0:
+        return jsonify([]), 403
+
+    rows = cursor.execute("SELECT rowid, channelname FROM channels").fetchall()
+    print(rows)
     channels = {}
     for row in rows:
         channels[row[0]] = row[1]
@@ -92,11 +111,18 @@ def replies():
 def postMessage():
     body = request.json
     channel = int(body['channel'])
-    authkey = body['authkey']
+    authkey = request.headers.get('Authorization')
     content = body['content']
 
     connection = sqlite3.connect("db/belay.db")
     cursor = connection.cursor()
+
+    permission = cursor.execute(
+        "SELECT * from users where authkey = ? ", (authkey,)).fetchall()
+
+    if len(permission) == 0:
+        return jsonify([]), 403
+
     user = cursor.execute(
         "select username from users where authkey = ?", (authkey,)).fetchall()[0][0]
     cursor.execute(
@@ -116,6 +142,13 @@ def postReply():
 
     connection = sqlite3.connect("db/belay.db")
     cursor = connection.cursor()
+
+    permission = cursor.execute(
+        "SELECT * from users where authkey = ? ", (authkey,)).fetchall()
+
+    if len(permission) == 0:
+        return jsonify([]), 403
+
     user = cursor.execute(
         "select username from users where authkey = ?", (authkey,)).fetchall()[0][0]
 
@@ -127,35 +160,57 @@ def postReply():
     return "", 204
 
 
-@ app.route('/api/attemptLogin', methods=['GET'])
-def attemptLogin():
-    username = request.headers.get('Username')
-    password = request.headers.get('Password')
-
+@app.route('/api/validateAuthKey', methods=['GET'])
+def validateAuthKey():
+    authkey = request.headers.get('Authorization')
     connection = sqlite3.connect("db/belay.db")
     cursor = connection.cursor()
 
     permission = cursor.execute(
-        "SELECT authkey FROM users WHERE username=? AND pwd = ?", (username, password)).fetchall()
+        "SELECT * FROM users WHERE authkey=?", (authkey,)).fetchall()
 
     if len(permission) == 0:
         return "", 403
+    else:
+        return "", 200
 
-    return jsonify(permission[0][0]), 200
+
+@ app.route('/api/attemptLogin', methods=['GET'])
+def attemptLogin():
+    username = request.headers.get('Username')
+    password = request.headers.get('Password').encode('utf-8')
+
+    connection = sqlite3.connect("db/belay.db")
+    cursor = connection.cursor()
+
+    print('hi')
+
+    result = cursor.execute(
+        "SELECT pwd,authkey FROM users WHERE username=?", (username,)).fetchall()[0]
+
+    hashed = result[0]
+    authkey = result[1]
+    print(type(authkey))
+
+    if bcrypt.checkpw(password, hashed):
+        return jsonify(authkey), 200
+    return "", 403
 
 
 @ app.route('/api/createAccount', methods=['POST'])
 def createAccount():
     body = request.json
     username = body['username']
-    password = body['password']
+    password = body['password'].encode('utf-8')
 
     auth_key = str(uuid.uuid4())
+
+    hashed = bcrypt.hashpw(password, bcrypt.gensalt())
 
     connection = sqlite3.connect("db/belay.db")
     cursor = connection.cursor()
     cursor.execute(
-        "INSERT INTO users (username, pwd, authkey) VALUES (?,?,?)", (username, password, auth_key,))
+        "INSERT INTO users (username, pwd, authkey) VALUES (?,?,?)", (username, hashed, auth_key,))
     connection.commit()
 
     return "", 204
@@ -172,12 +227,10 @@ def unreadMessages():
         "SELECT * from users where authkey = ? ", (authkey,)).fetchall()
 
     if len(permission) == 0:
-        return jsonify(""), 403
+        return "", 403
 
     unreadMessages = cursor.execute("with my_last_read as (with all_channels as (select distinct rowid-1 as channel_id from channels) select all_channels.channel_id, coalesce(last_read.last_read_message_id,0) as last_read_id from all_channels left join last_read on all_channels.channel_id = last_read.channel_id and last_read.authkey = ?) select my_last_read.channel_id,count(*) from my_last_read left join messages on my_last_read.channel_id = messages.channel_id where messages.rowid > my_last_read.last_read_id group by messages.channel_id;", (authkey,)).fetchall()
-    print("PRinting unread messages")
-    print(authkey)
-    print(unreadMessages)
+
     return jsonify(unreadMessages), 200
 
 

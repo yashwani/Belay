@@ -43,8 +43,7 @@ create table if not exists users(
   PRIMARY KEY(username)
 );
 
-INSERT INTO users (username, pwd, authkey) VALUES ('yash', 'password', 'testauthkey');
-INSERT INTO users (username, pwd, authkey) VALUES ('rufus', 'password', 'rufusauthkey');
+
 
 
 drop table if exists replies;
